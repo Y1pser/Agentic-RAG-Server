@@ -36,7 +36,7 @@
 | A1 | 初始化目录树与最小可运行入口 | [x] | 2026-06-21 | 创建完整目录骨架(rag_mcp_server + agent_layer 双层)、main.py、pyproject.toml、.gitignore、.env.example、requirements.txt、README.md、所有 __init__.py、23 个冒烟测试通过 |
 | A2 | 引入 pytest 并建立测试目录约定 | [x] | 2026-06-21 | pytest 配置(pyproject.toml)、conftest.py 共享 fixtures、sample_documents/hello.txt 测试用文档、29 个冒烟测试全部通过 |
 | A3 | 配置加载与校验（Settings） | [x] | 2026-06-21 | `Settings` dataclass(9 配置域)、`load_settings()` YAML解析、`validate_settings()` 必填字段校验(llm/embedding/vector_store)、6 个单元测试通过 |
-| A4 | .env 密钥管理与 .env.example | [ ] | — | `python-dotenv` 集成、`.env.example` 模板、settings.py 读取环境变量 |
+| A4 | .env 密钥管理与 .env.example | [x] | 2026-06-21 | `apply_env_overrides()` 支持 OPENAI/AZURE/TAVILY/SERPAPI/EMBEDDING 密钥注入、`.env.example` 模板(已在A1创建)、python-dotenv 可选集成、3 个测试通过 |
 | A5 | git init + GitHub 仓库关联 | [ ] | — | 新建仓库（与原始项目切割）、首次 commit |
 
 #### Phase B：RAG 核心复现
@@ -206,7 +206,7 @@
 
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
-| Phase A | 5 | 3 | 60% |
+| Phase A | 5 | 4 | 80% |
 | Phase B-1 | 14 | 0 | 0% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
@@ -221,7 +221,7 @@
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **94** | **3** | **3.2%** |
+| **总计** | **94** | **4** | **4.3%** |
 
 ---
 
