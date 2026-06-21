@@ -1,0 +1,45 @@
+# config/settings.yaml
+# Agentic RAG Server configuration
+
+llm:
+  provider: openai
+  model: gpt-4o
+
+embedding:
+  provider: openai
+  model: text-embedding-3-small
+
+vector_store:
+  backend: chroma
+  persist_directory: data/chroma
+
+retrieval:
+  sparse_backend: bm25
+  fusion_algorithm: rrf
+  rerank_backend: none
+
+rerank:
+  llm_rerank:
+    enabled: false
+
+evaluation:
+  backends: []
+
+observability:
+  enabled: true
+  logging:
+    log_file: logs/traces.jsonl
+    log_level: INFO
+  detail_level: standard
+
+dashboard:
+  enabled: true
+  port: 8501
+
+agent:
+  max_rounds: 3
+  score_threshold: 0.7
+  web_search:
+    backend: tavily
+  cache:
+    enabled: false
