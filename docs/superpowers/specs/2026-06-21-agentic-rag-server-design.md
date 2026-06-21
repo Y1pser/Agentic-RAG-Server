@@ -408,7 +408,7 @@ D:\Codex_workspace\559-3\
 | A2 | 引入 pytest 并建立测试目录约定 | [x] | 2026-06-21 | pytest 配置(pyproject.toml)、conftest.py 共享 fixtures、sample_documents/hello.txt 测试用文档、29 个冒烟测试全部通过 |
 | A3 | 配置加载与校验（Settings） | [x] | 2026-06-21 | `Settings` dataclass(9 配置域)、`load_settings()` YAML解析、`validate_settings()` 必填字段校验(llm/embedding/vector_store)、6 个单元测试通过 |
 | A4 | .env 密钥管理与 .env.example | [x] | 2026-06-21 | `apply_env_overrides()` 支持 OPENAI/AZURE/TAVILY/SERPAPI/EMBEDDING 密钥注入、`.env.example` 模板(已在A1创建)、python-dotenv 可选集成、3 个测试通过 |
-| A5 | git init + GitHub 仓库关联 | [x] | 2026-06-21 | git init 完成 + 4 次提交历史、待用户创建 GitHub 远程仓库后 push |
+| A5 | git init + GitHub 仓库关联 | [x] | 2026-06-21 | git init + 5 次提交 + GitHub 远程已建立，已 push 到 https://github.com/Y1pser/Agentic-RAG-Server |
 
 #### Phase B：RAG 核心复现
 
