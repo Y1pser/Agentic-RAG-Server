@@ -1,0 +1,24 @@
+# Core
+chromadb>=0.5.0
+langchain>=0.3.0
+langchain-text-splitters>=0.3.0
+langgraph>=0.2.0
+mcp>=1.0.0
+openai>=1.50.0
+pydantic>=2.0.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Evaluation
+ragas>=0.2.0
+
+# Dashboard
+streamlit>=1.35.0
+
+# Document loading
+markitdown>=0.0.1
+
+# Dev
+pytest>=8.0.0
+pytest-cov>=5.0.0
+pytest-asyncio>=0.24.0

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment secrets
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project data (large files)
+rag_mcp_server/data/*.pdf
+rag_mcp_server/data/*.db
+rag_mcp_server/data/*.sqlite
+rag_mcp_server/data/chroma/
+
+# Auto-coder cache
+.github/skills/auto-coder/.spec_hash
+
+# Reports and artifacts
+.github/skills/*/reports/
