@@ -419,7 +419,7 @@ D:\Codex_workspace\559-3\
 | B1.1 | LLM 抽象接口与工厂 | [x] | 2026-06-22 | `BaseLLM` + `LLMFactory`，支持按配置选择 provider |
 | B1.2 | Embedding 抽象接口与工厂 | [x] | 2026-06-22 | `BaseEmbedding` + `EmbeddingFactory`，支持批量 embed |
 | B1.3 | Splitter 抽象接口与工厂 | [x] | 2026-06-22 | `BaseSplitter` + `SplitterFactory` |
-| B1.4 | VectorStore 抽象接口与工厂 | [ ] | — | `BaseVectorStore` + `VectorStoreFactory` |
+| B1.4 | VectorStore 抽象接口与工厂 | [x] | 2026-06-22 | `BaseVectorStore` + `VectorStoreFactory` |
 | B1.5 | Reranker 抽象接口与工厂（含 None 回退） | [ ] | — | `BaseReranker` + `RerankerFactory` + `NoneReranker` |
 | B1.6 | Evaluator 抽象接口与工厂 | [ ] | — | `BaseEvaluator` + `EvaluatorFactory` |
 | B1.7 | OpenAI-Compatible LLM 实现 | [ ] | — | `OpenAILLM` + `AzureLLM` + `DeepSeekLLM` |
@@ -578,7 +578,7 @@ D:\Codex_workspace\559-3\
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 3 | 21% |
+| Phase B-1 | 14 | 4 | 29% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -592,7 +592,7 @@ D:\Codex_workspace\559-3\
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **94** | **8** | **8.5%** |
+| **总计** | **94** | **9** | **9.6%** |
 
 ---
 
