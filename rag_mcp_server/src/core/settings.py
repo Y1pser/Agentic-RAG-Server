@@ -11,6 +11,7 @@ class Settings:
 
     llm: dict = field(default_factory=dict)
     embedding: dict = field(default_factory=dict)
+    splitter: dict = field(default_factory=dict)
     vector_store: dict = field(default_factory=dict)
     retrieval: dict = field(default_factory=dict)
     rerank: dict = field(default_factory=dict)
