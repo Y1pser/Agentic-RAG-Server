@@ -416,7 +416,7 @@ D:\Codex_workspace\559-3\
 
 | 任务编号 | 任务名称 | 状态 | 完成日期 | 备注 |
 |---------|---------|------|---------|------|
-| B1.1 | LLM 抽象接口与工厂 | [ ] | — | `BaseLLM` + `LLMFactory`，支持按配置选择 provider |
+| B1.1 | LLM 抽象接口与工厂 | [x] | 2026-06-22 | `BaseLLM` + `LLMFactory`，支持按配置选择 provider |
 | B1.2 | Embedding 抽象接口与工厂 | [ ] | — | `BaseEmbedding` + `EmbeddingFactory`，支持批量 embed |
 | B1.3 | Splitter 抽象接口与工厂 | [ ] | — | `BaseSplitter` + `SplitterFactory` |
 | B1.4 | VectorStore 抽象接口与工厂 | [ ] | — | `BaseVectorStore` + `VectorStoreFactory` |
@@ -578,7 +578,7 @@ D:\Codex_workspace\559-3\
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 0 | 0% |
+| Phase B-1 | 14 | 1 | 7% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -592,7 +592,7 @@ D:\Codex_workspace\559-3\
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **94** | **5** | **5.3%** |
+| **总计** | **94** | **6** | **6.4%** |
 
 ---
 
