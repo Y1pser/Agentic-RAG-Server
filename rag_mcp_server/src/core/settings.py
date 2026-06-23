@@ -96,14 +96,32 @@ def apply_env_overrides(settings: Settings) -> None:
     except ImportError:
         pass  # python-dotenv is optional
 
-    # LLM keys
+    # LLM keys — OpenAI
     openai_key = os.getenv("OPENAI_API_KEY")
     if openai_key and "api_key" not in settings.llm:
         settings.llm["api_key"] = openai_key
 
+    openai_base = os.getenv("OPENAI_BASE_URL")
+    if openai_base and "base_url" not in settings.llm:
+        settings.llm["base_url"] = openai_base
+
+    # LLM keys — Azure OpenAI
     azure_key = os.getenv("AZURE_OPENAI_API_KEY")
     if azure_key and settings.llm.get("provider") == "azure":
         settings.llm["api_key"] = azure_key
+
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    if azure_endpoint and "endpoint" not in settings.llm:
+        settings.llm["endpoint"] = azure_endpoint
+
+    azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+    if azure_api_version and "api_version" not in settings.llm:
+        settings.llm["api_version"] = azure_api_version
+
+    # LLM keys — DeepSeek
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    if deepseek_key and settings.llm.get("provider") == "deepseek":
+        settings.llm["api_key"] = deepseek_key
 
     # Embedding key
     embedding_key = os.getenv("EMBEDDING_API_KEY")
