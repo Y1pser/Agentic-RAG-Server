@@ -1,45 +1,124 @@
-# config/settings.yaml
-# Agentic RAG Server configuration
+# Agentic RAG Server — Configuration
+# =============================================================================
+# This is the MAIN configuration file.  All settings including API keys live here.
+# Copy this file to settings.local.yaml for your real keys (it is gitignored).
+# =============================================================================
 
+# =============================================================================
+# LLM Configuration
+# =============================================================================
 llm:
-  provider: openai
-  model: gpt-4o
+  provider: "deepseek"        # Options: openai, azure, deepseek, ollama
+  model: "deepseek-chat"      # Model / deployment name
 
+  # ── Credentials (choose one provider) ──────────────────────────
+  # Copy config/settings.local.yaml from settings.local.example.yaml
+  # and put your real keys there — it is gitignored.
+
+  # OpenAI
+  # api_key: "sk-your-openai-key"
+  # base_url: "https://api.openai.com/v1"
+
+  # Azure OpenAI
+  # api_key: "your-azure-key"
+  # endpoint: "https://YOUR_RESOURCE.openai.azure.com"
+  # api_version: "2024-02-15-preview"
+
+  # DeepSeek (OpenAI-compatible)
+  api_key: "sk-your-deepseek-key"
+  base_url: "https://api.deepseek.com/v1"
+
+  # ── Generation defaults ────────────────────────────────────────
+  temperature: 0.0
+  max_tokens: 4096
+
+# =============================================================================
+# Embedding Configuration
+# =============================================================================
 embedding:
-  provider: openai
-  model: text-embedding-3-small
+  provider: "openai"                       # Options: openai, azure
+  model: "text-embedding-3-small"
+  api_key: "sk-your-embedding-key"
+  dimensions: 1536
 
+# =============================================================================
+# Vector Store Configuration
+# =============================================================================
 vector_store:
-  backend: chroma
-  persist_directory: data/chroma
+  backend: "chroma"                        # Options: chroma
+  persist_directory: "data/chroma"
+  collection_name: "knowledge_hub"
 
+# =============================================================================
+# Retrieval Configuration
+# =============================================================================
 retrieval:
-  sparse_backend: bm25
-  fusion_algorithm: rrf
-  rerank_backend: none
+  dense_top_k: 20
+  sparse_top_k: 20
+  fusion_top_k: 10
+  sparse_backend: "bm25"
+  fusion_algorithm: "rrf"
+  rrf_k: 60
+  rerank_backend: "none"
 
+# =============================================================================
+# Rerank Configuration
+# =============================================================================
 rerank:
+  enabled: false
+  provider: "none"                         # Options: none, cross_encoder, llm
   llm_rerank:
     enabled: false
+  model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  top_k: 5
 
+# =============================================================================
+# Evaluation Configuration
+# =============================================================================
 evaluation:
-  backends: []
+  enabled: false
+  backends: []                             # e.g. ["ragas"]
+  metrics:
+    - "hit_rate"
+    - "mrr"
 
+# =============================================================================
+# Observability Configuration
+# =============================================================================
 observability:
   enabled: true
+  log_level: "INFO"
+  trace_enabled: true
   logging:
-    log_file: logs/traces.jsonl
-    log_level: INFO
-  detail_level: standard
+    log_file: "logs/traces.jsonl"
+    log_level: "INFO"
+  detail_level: "standard"
 
+# =============================================================================
+# Dashboard Configuration
+# =============================================================================
 dashboard:
   enabled: true
   port: 8501
 
+# =============================================================================
+# Ingestion Configuration
+# =============================================================================
+ingestion:
+  chunk_size: 1000
+  chunk_overlap: 200
+  splitter: "recursive"
+  batch_size: 100
+
+# =============================================================================
+# Agent Configuration
+# =============================================================================
 agent:
   max_rounds: 3
   score_threshold: 0.7
   web_search:
-    backend: tavily
+    backend: "tavily"                      # Options: tavily, serpapi
+    tavily_api_key: "tvly-your-key-here"
+    serpapi_api_key: "your-key-here"
   cache:
     enabled: false

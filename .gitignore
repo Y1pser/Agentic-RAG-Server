@@ -21,6 +21,7 @@ env/
 
 # Environment secrets
 .env
+config/settings.local.yaml
 
 # OS
 .DS_Store

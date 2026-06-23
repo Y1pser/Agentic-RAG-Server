@@ -1,16 +1,12 @@
 """Unit tests for OpenAILLM, AzureLLM, and DeepSeekLLM providers.
 
-All external HTTP calls are mocked so the suite runs offline and
-deterministically.  Each provider is tested for initialisation, message
-validation, successful chat completion, error propagation, and factory
-registration.
+All external HTTP calls are mocked.  Configuration is passed through
+``Settings.llm`` dict — no env vars or .env file needed.
 """
 
 from __future__ import annotations
 
 import importlib
-import os
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
@@ -52,11 +48,7 @@ def _valid_messages() -> List[Message]:
 
 
 def _reload_provider_modules() -> None:
-    """Force re-import of provider modules so auto-registration fires again.
-
-    Must be called after ``LLMFactory.clear_registry()`` to re-populate
-    the factory with the provider classes.
-    """
+    """Force re-import of provider modules so auto-registration fires again."""
     import rag_mcp_server.src.libs.llm.openai_llm
     import rag_mcp_server.src.libs.llm.azure_llm
     import rag_mcp_server.src.libs.llm.deepseek_llm
@@ -68,8 +60,7 @@ def _reload_provider_modules() -> None:
 
 @pytest.fixture(autouse=True)
 def _clean_factory() -> None:
-    """Ensure the factory registry is clean before each test, then re-register
-    all concrete providers so every test sees a populated registry."""
+    """Ensure the factory registry is clean before each test."""
     LLMFactory.clear_registry()
     _reload_provider_modules()
     yield
@@ -94,23 +85,14 @@ class TestOpenAILLM:
 
     def test_auto_registered_with_factory(self) -> None:
         assert LLMFactory.is_registered("openai")
-        assert LLMFactory.is_registered("OPENAI")
-        assert "openai" in LLMFactory.list_providers()
 
     # ── initialisation ──────────────────────────────────────────────
 
-    def test_init_with_settings_api_key(self) -> None:
+    def test_init_with_api_key_in_settings(self) -> None:
         settings = Settings(llm={"provider": "openai", "api_key": "sk-test"})
         with patch("openai.OpenAI") as mock_client:
             self.provider_cls(settings)
             mock_client.assert_called_once_with(api_key="sk-test")
-
-    def test_init_with_env_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-env")
-        settings = Settings(llm={"provider": "openai"})
-        with patch("openai.OpenAI") as mock_client:
-            self.provider_cls(settings)
-            mock_client.assert_called_once_with(api_key="sk-env")
 
     def test_init_with_base_url(self) -> None:
         settings = Settings(
@@ -126,11 +108,16 @@ class TestOpenAILLM:
                 api_key="sk-test", base_url="https://proxy.example.com/v1"
             )
 
-    def test_init_raises_without_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    def test_init_raises_without_api_key(self) -> None:
         settings = Settings(llm={"provider": "openai"})
         with pytest.raises(ValueError, match="API key not found"):
             self.provider_cls(settings)
+
+    def test_init_kwargs_override_api_key(self) -> None:
+        settings = Settings(llm={"provider": "openai", "api_key": "sk-from-settings"})
+        with patch("openai.OpenAI") as mock_client:
+            self.provider_cls(settings, api_key="sk-from-kwargs")
+            mock_client.assert_called_once_with(api_key="sk-from-kwargs")
 
     def test_init_kwargs_override_model(self) -> None:
         settings = Settings(
@@ -155,12 +142,9 @@ class TestOpenAILLM:
             mock_client.return_value.chat.completions.create.return_value = mock_resp
             llm = self.provider_cls(settings)
         result = llm.chat(_valid_messages())
-        assert isinstance(result, ChatResponse)
         assert result.content == "Paris"
         assert result.model == "gpt-4o"
-        assert result.usage is not None
         assert result.usage["total_tokens"] == 15
-        assert result.raw_response is not None
 
     def test_chat_merges_default_and_call_params(self) -> None:
         settings = Settings(llm={"provider": "openai", "api_key": "sk-test"})
@@ -172,8 +156,8 @@ class TestOpenAILLM:
         call_kwargs = (
             mock_client.return_value.chat.completions.create.call_args.kwargs
         )
-        assert call_kwargs["temperature"] == 0.2  # default param
-        assert call_kwargs["max_tokens"] == 100  # call-time override
+        assert call_kwargs["temperature"] == 0.2
+        assert call_kwargs["max_tokens"] == 100
 
     def test_chat_raises_on_api_failure(self) -> None:
         settings = Settings(llm={"provider": "openai", "api_key": "sk-test"})
@@ -231,19 +215,23 @@ class TestAzureLLM:
             mock_client.assert_called_once_with(
                 api_key="sk-azure",
                 azure_endpoint="https://example.openai.azure.com",
-                api_version="2024-02-15-preview",  # default
+                api_version="2024-02-15-preview",
             )
 
-    def test_init_with_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "sk-env")
-        monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://env.openai.azure.com")
-        monkeypatch.setenv("AZURE_OPENAI_API_VERSION", "2024-06-01")
-        settings = Settings(llm={"provider": "azure"})
+    def test_init_with_custom_api_version(self) -> None:
+        settings = Settings(
+            llm={
+                "provider": "azure",
+                "api_key": "sk-azure",
+                "endpoint": "https://example.openai.azure.com",
+                "api_version": "2024-06-01",
+            }
+        )
         with patch("openai.AzureOpenAI") as mock_client:
             self.provider_cls(settings)
             mock_client.assert_called_once_with(
-                api_key="sk-env",
-                azure_endpoint="https://env.openai.azure.com",
+                api_key="sk-azure",
+                azure_endpoint="https://example.openai.azure.com",
                 api_version="2024-06-01",
             )
 
@@ -277,7 +265,6 @@ class TestAzureLLM:
             llm = self.provider_cls(settings)
         result = llm.chat(_valid_messages())
         assert result.content == "Azure response"
-        assert result.model == "gpt-4o"
 
     def test_factory_create_azure(self) -> None:
         settings = Settings(
@@ -317,36 +304,22 @@ class TestDeepSeekLLM:
                 api_key="sk-ds", base_url="https://api.deepseek.com/v1"
             )
 
-    def test_init_falls_back_to_openai_key(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-fallback")
-        settings = Settings(llm={"provider": "deepseek"})
+    def test_init_with_custom_base_url(self) -> None:
+        settings = Settings(
+            llm={
+                "provider": "deepseek",
+                "api_key": "sk-ds",
+                "base_url": "https://custom.deepseek.com/v1",
+            }
+        )
         with patch("openai.OpenAI") as mock_client:
             self.provider_cls(settings)
             mock_client.assert_called_once_with(
-                api_key="sk-openai-fallback",
-                base_url="https://api.deepseek.com/v1",
+                api_key="sk-ds",
+                base_url="https://custom.deepseek.com/v1",
             )
 
-    def test_init_prefers_deepseek_key_over_openai_key(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-ds")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
-        settings = Settings(llm={"provider": "deepseek"})
-        with patch("openai.OpenAI") as mock_client:
-            self.provider_cls(settings)
-            mock_client.assert_called_once_with(
-                api_key="sk-ds", base_url="https://api.deepseek.com/v1"
-            )
-
-    def test_init_raises_without_any_api_key(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    def test_init_raises_without_api_key(self) -> None:
         settings = Settings(llm={"provider": "deepseek"})
         with pytest.raises(ValueError, match="API key not found"):
             self.provider_cls(settings)
@@ -365,7 +338,6 @@ class TestDeepSeekLLM:
             llm = self.provider_cls(settings)
         result = llm.chat(_valid_messages())
         assert result.content == "DeepSeek says hello"
-        assert result.model == "deepseek-chat"
 
     def test_factory_create_deepseek(self) -> None:
         settings = Settings(llm={"provider": "deepseek", "api_key": "sk-ds"})

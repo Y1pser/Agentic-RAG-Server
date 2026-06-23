@@ -68,15 +68,24 @@ class TestValidateSettings:
     def test_missing_embedding_provider_raises(self):
         """Should raise ValueError when embedding.provider is missing."""
         settings = Settings()
-        settings.llm = {"provider": "openai"}
+        settings.llm = {"provider": "openai", "api_key": "sk-test"}
         settings.embedding = {"model": "text-embedding-3-small"}  # no provider
         with pytest.raises(ValueError, match="embedding.provider"):
+            validate_settings(settings)
+
+    def test_missing_llm_api_key_raises(self):
+        """Should raise ValueError when llm.api_key is missing."""
+        settings = Settings()
+        settings.llm = {"provider": "openai"}  # no api_key
+        settings.embedding = {"provider": "openai"}
+        settings.vector_store = {"backend": "chroma"}
+        with pytest.raises(ValueError, match="llm.api_key"):
             validate_settings(settings)
 
     def test_valid_settings_pass(self):
         """Should not raise for valid settings."""
         settings = Settings()
-        settings.llm = {"provider": "openai"}
+        settings.llm = {"provider": "openai", "api_key": "sk-test"}
         settings.embedding = {"provider": "openai"}
         settings.vector_store = {"backend": "chroma"}
         validate_settings(settings)  # should not raise

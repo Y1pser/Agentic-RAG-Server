@@ -1,6 +1,9 @@
-"""Configuration loading and validation."""
+"""Configuration loading and validation.
 
-import os
+All settings (including API keys) live in ``config/settings.yaml``.
+There is no .env file — keys are read directly from the YAML config.
+"""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +22,7 @@ class Settings:
     observability: dict = field(default_factory=dict)
     dashboard: dict = field(default_factory=dict)
     agent: dict = field(default_factory=dict)
+    ingestion: dict = field(default_factory=dict)
 
 
 def load_settings(path: str) -> Settings:
@@ -45,14 +49,39 @@ def load_settings(path: str) -> Settings:
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f) or {}
+    raw = _load_yaml(config_path)
+
+    # Merge local overrides if present (same directory, gitignored)
+    local_path = config_path.parent / "settings.local.yaml"
+    if local_path.exists():
+        local_raw = _load_yaml(local_path)
+        _deep_merge(raw, local_raw)
 
     settings = Settings()
     for key in Settings.__dataclass_fields__:
         if key in raw:
             setattr(settings, key, raw[key])
     return settings
+
+
+def _load_yaml(path: Path) -> dict:
+    """Load a single YAML file, returning a dict (empty if file is empty)."""
+    import yaml
+
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _deep_merge(base: dict, override: dict) -> None:
+    """Recursively merge ``override`` into ``base`` in-place.
+
+    Dict values are merged recursively; everything else is overwritten.
+    """
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
 
 
 def validate_settings(settings: Settings) -> None:
@@ -66,78 +95,10 @@ def validate_settings(settings: Settings) -> None:
     """
     required = {
         "llm.provider": settings.llm.get("provider"),
+        "llm.api_key": settings.llm.get("api_key"),
         "embedding.provider": settings.embedding.get("provider"),
         "vector_store.backend": settings.vector_store.get("backend"),
     }
     for field_path, value in required.items():
         if not value:
             raise ValueError(f"Missing required config field: {field_path}")
-
-
-def apply_env_overrides(settings: Settings) -> None:
-    """Apply environment variable overrides to settings.
-
-    Reads from .env file and os.environ. Keys follow the pattern:
-    - OPENAI_API_KEY -> settings.llm["api_key"]
-    - AZURE_OPENAI_API_KEY -> settings.llm["api_key"] (azure provider)
-    - TAVILY_API_KEY -> settings.agent["web_search"]["tavily_api_key"]
-    - SERPAPI_API_KEY -> settings.agent["web_search"]["serpapi_api_key"]
-    - EMBEDDING_API_KEY -> settings.embedding["api_key"]
-
-    Args:
-        settings: Settings instance to apply overrides to.
-    """
-    # Load .env file if present
-    try:
-        from dotenv import load_dotenv
-        env_path = Path.cwd() / ".env"
-        if env_path.exists():
-            load_dotenv(env_path)
-    except ImportError:
-        pass  # python-dotenv is optional
-
-    # LLM keys — OpenAI
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key and "api_key" not in settings.llm:
-        settings.llm["api_key"] = openai_key
-
-    openai_base = os.getenv("OPENAI_BASE_URL")
-    if openai_base and "base_url" not in settings.llm:
-        settings.llm["base_url"] = openai_base
-
-    # LLM keys — Azure OpenAI
-    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
-    if azure_key and settings.llm.get("provider") == "azure":
-        settings.llm["api_key"] = azure_key
-
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    if azure_endpoint and "endpoint" not in settings.llm:
-        settings.llm["endpoint"] = azure_endpoint
-
-    azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-    if azure_api_version and "api_version" not in settings.llm:
-        settings.llm["api_version"] = azure_api_version
-
-    # LLM keys — DeepSeek
-    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-    if deepseek_key and settings.llm.get("provider") == "deepseek":
-        settings.llm["api_key"] = deepseek_key
-
-    # Embedding key
-    embedding_key = os.getenv("EMBEDDING_API_KEY")
-    if embedding_key and "api_key" not in settings.embedding:
-        settings.embedding["api_key"] = embedding_key
-
-    # Web search keys
-    agent = settings.agent
-    if "web_search" not in agent:
-        agent["web_search"] = {}
-    ws = agent["web_search"]
-
-    tavily_key = os.getenv("TAVILY_API_KEY")
-    if tavily_key:
-        ws["tavily_api_key"] = tavily_key
-
-    serpapi_key = os.getenv("SERPAPI_API_KEY")
-    if serpapi_key:
-        ws["serpapi_api_key"] = serpapi_key

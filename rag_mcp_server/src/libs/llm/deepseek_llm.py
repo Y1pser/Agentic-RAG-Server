@@ -1,52 +1,42 @@
 """DeepSeek LLM provider implementation.
 
-DeepSeek exposes an OpenAI-compatible API, so this provider re-uses the
-standard ``openai.OpenAI`` client pointed at ``https://api.deepseek.com/v1``
-(or a custom base URL from config).
+DeepSeek exposes an OpenAI-compatible API — this provider is a thin wrapper
+around ``openai.OpenAI`` pointed at DeepSeek's base URL.  All configuration
+is read from ``settings.llm``.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List, Optional
 
 from rag_mcp_server.src.core.settings import Settings
 from rag_mcp_server.src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
 from rag_mcp_server.src.libs.llm.llm_factory import LLMFactory
 
-# Default base URL for the DeepSeek API.
 _DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
 
 
 class DeepSeekLLM(BaseLLM):
     """LLM provider backed by the DeepSeek API.
 
-    Because DeepSeek is OpenAI-compatible, this implementation is a thin
-    wrapper around ``openai.OpenAI`` with a pre-configured base URL.
-    API key resolution order:
+    All configuration is read from the ``llm`` section of ``settings.yaml``:
 
-    1. ``api_key`` in ``settings.llm`` or constructor kwargs
-    2. ``DEEPSEEK_API_KEY`` environment variable
-    3. ``OPENAI_API_KEY`` environment variable (shared fallback)
+    .. code-block:: yaml
 
-    Design Principles Applied
-    -------------------------
-    - **Pluggable** – drop-in replacement for any other BaseLLM.
-    - **Config-Driven** – base URL and credentials come from ``Settings``
-      or env vars.
-    - **Observable** – trace context argument reserved for Phase B-5.
+        llm:
+          provider: deepseek
+          model: deepseek-chat
+          api_key: "sk-your-deepseek-key"
+          base_url: "https://api.deepseek.com/v1"   # optional
     """
 
     def __init__(self, settings: Settings, **kwargs: Any) -> None:
         """Initialise the DeepSeek client.
 
         Args:
-            settings: Application settings.  Expected keys in
-                ``settings.llm``: ``model``, ``api_key``, ``base_url``
-                (all optional when env vars are set).
+            settings: Application settings.
             **kwargs: Overrides / extra generation defaults.  Recognised
-                keys: ``model``, ``api_key``, ``base_url``.  Everything
-                else is treated as a default generation parameter.
+                keys: ``model``, ``api_key``, ``base_url``.
         """
         from openai import OpenAI
 
@@ -61,24 +51,19 @@ class DeepSeekLLM(BaseLLM):
         api_key: Optional[str] = (
             kwargs.pop("api_key", None)
             or settings.llm.get("api_key")
-            or os.getenv("DEEPSEEK_API_KEY")
-            or os.getenv("OPENAI_API_KEY")
         )
         base_url: Optional[str] = (
             kwargs.pop("base_url", None)
             or settings.llm.get("base_url")
-            or os.getenv("OPENAI_BASE_URL")
             or _DEFAULT_BASE_URL
         )
 
         if not api_key:
             raise ValueError(
-                "DeepSeek API key not found. Set DEEPSEEK_API_KEY or "
-                "OPENAI_API_KEY in .env, or specify api_key in the llm "
-                "section of settings.yaml."
+                "DeepSeek API key not found. Specify api_key in the llm "
+                "section of config/settings.yaml."
             )
 
-        # Extra kwargs become default generation parameters
         self.default_params: Dict[str, Any] = kwargs
         self.client: OpenAI = OpenAI(api_key=api_key, base_url=base_url)
 
@@ -90,20 +75,7 @@ class DeepSeekLLM(BaseLLM):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> ChatResponse:
-        """Send a conversation to DeepSeek and return the response.
-
-        Args:
-            messages: Conversation history (system / user / assistant).
-            trace: Reserved for observability (Phase B-5).
-            **kwargs: Per-call overrides merged on top of ``default_params``.
-
-        Returns:
-            ``ChatResponse`` with the completion content and usage metadata.
-
-        Raises:
-            ValueError: If ``messages`` fails validation.
-            RuntimeError: If the DeepSeek API call fails.
-        """
+        """Send a conversation to DeepSeek and return the response."""
         self.validate_messages(messages)
 
         openai_messages: List[Dict[str, str]] = [

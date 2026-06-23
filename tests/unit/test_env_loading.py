@@ -1,35 +1,35 @@
-"""Test environment variable loading via python-dotenv."""
+"""Test that settings.yaml is loaded and validated correctly.
 
-from rag_mcp_server.src.core.settings import apply_env_overrides, Settings
+Since the project no longer uses .env files, this module tests the
+settings-loading pipeline: YAML parse → Settings dataclass → validation.
+"""
+
+import pytest
+from rag_mcp_server.src.core.settings import Settings, validate_settings
 
 
-class TestEnvOverrides:
-    """Tests for environment variable overrides on settings."""
+class TestValidateSettings:
+    """Tests for settings validation (no .env involved)."""
 
-    def test_env_var_overrides_llm_api_key(self, monkeypatch):
-        """Environment variables should override settings values."""
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-test-key")
-        settings = Settings()
-        settings.llm = {"provider": "openai", "model": "gpt-4o"}
-
-        apply_env_overrides(settings)
-
-        assert settings.llm["api_key"] == "sk-env-test-key"
-
-    def test_env_var_missing_does_not_crash(self):
-        """Missing env vars should not cause errors."""
+    def test_missing_llm_api_key_raises(self) -> None:
         settings = Settings()
         settings.llm = {"provider": "openai"}
-        apply_env_overrides(settings)  # should not raise
+        settings.embedding = {"provider": "openai"}
+        settings.vector_store = {"backend": "chroma"}
+        with pytest.raises(ValueError, match="llm.api_key"):
+            validate_settings(settings)
 
-    def test_multiple_providers_get_keys(self, monkeypatch):
-        """Multiple search API keys should all be picked up."""
-        monkeypatch.setenv("TAVILY_API_KEY", "tvly-test")
-        monkeypatch.setenv("SERPAPI_API_KEY", "serp-test")
+    def test_missing_llm_provider_raises(self) -> None:
         settings = Settings()
-        settings.agent = {"web_search": {"backend": "tavily"}}
+        settings.llm = {"api_key": "sk-test"}
+        settings.embedding = {"provider": "openai"}
+        settings.vector_store = {"backend": "chroma"}
+        with pytest.raises(ValueError, match="llm.provider"):
+            validate_settings(settings)
 
-        apply_env_overrides(settings)
-
-        assert settings.agent["web_search"].get("tavily_api_key") == "tvly-test"
-        assert settings.agent["web_search"].get("serpapi_api_key") == "serp-test"
+    def test_valid_settings_pass(self) -> None:
+        settings = Settings()
+        settings.llm = {"provider": "openai", "api_key": "sk-test"}
+        settings.embedding = {"provider": "openai"}
+        settings.vector_store = {"backend": "chroma"}
+        validate_settings(settings)  # should not raise
