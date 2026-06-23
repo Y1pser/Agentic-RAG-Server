@@ -423,7 +423,7 @@ D:\Codex_workspace\559-3\
 | B1.5 | Reranker 抽象接口与工厂（含 None 回退） | [x] | 2026-06-22 | `BaseReranker` + `RerankerFactory` + `NoneReranker` |
 | B1.6 | Evaluator 抽象接口与工厂 | [x] | 2026-06-22 | `BaseEvaluator` + `EvaluatorFactory` |
 | B1.7 | OpenAI-Compatible LLM 实现 | [x] | 2026-06-23 | `OpenAILLM` + `AzureLLM` + `DeepSeekLLM` |
-| B1.8 | Ollama LLM 实现 | [ ] | — | `OllamaLLM` |
+| B1.8 | Ollama LLM 实现 | [x] | 2026-06-23 | `OllamaLLM` |
 | B1.9 | OpenAI & Azure Embedding 实现 | [ ] | — | `OpenAIEmbedding` + `AzureEmbedding` |
 | B1.10 | Recursive Splitter 默认实现 | [ ] | — | `RecursiveSplitter`（LangChain 集成）|
 | B1.11 | ChromaStore 默认实现 | [ ] | — | `ChromaStore` + roundtrip 验证 |
@@ -578,7 +578,7 @@ D:\Codex_workspace\559-3\
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 7 | 50% |
+| Phase B-1 | 14 | 8 | 57% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -592,7 +592,7 @@ D:\Codex_workspace\559-3\
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **94** | **12** | **12.8%** |
+| **总计** | **94** | **13** | **13.8%** |
 
 ---
 

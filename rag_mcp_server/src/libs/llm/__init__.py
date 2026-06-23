@@ -5,7 +5,7 @@ This package contains LLM client abstractions and implementations:
 - Base LLM class (text-only)
 - LLM Factory
 - OpenAI-compatible provider implementations (B1.7)
-- Ollama provider (B1.8, TBD)
+- Ollama provider (B1.8)
 """
 
 from rag_mcp_server.src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
@@ -16,6 +16,7 @@ from rag_mcp_server.src.libs.llm.llm_factory import LLMFactory
 from rag_mcp_server.src.libs.llm.openai_llm import OpenAILLM  # noqa: F401
 from rag_mcp_server.src.libs.llm.azure_llm import AzureLLM  # noqa: F401
 from rag_mcp_server.src.libs.llm.deepseek_llm import DeepSeekLLM  # noqa: F401
+from rag_mcp_server.src.libs.llm.ollama_llm import OllamaLLM  # noqa: F401
 
 __all__ = [
     # Base classes
@@ -29,4 +30,5 @@ __all__ = [
     "OpenAILLM",
     "AzureLLM",
     "DeepSeekLLM",
+    "OllamaLLM",
 ]
