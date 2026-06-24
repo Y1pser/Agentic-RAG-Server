@@ -1064,6 +1064,67 @@ Each follows the same TDD pattern as B1.1/B1.2. Key files and interfaces:
 | B1.12 | — | `LLMReranker` with prompt template |
 | B1.13 | `BaseVisionLLM.describe(image) -> str` | Factory integration |
 | B1.14 | — | `AzureVisionLLM` |
+| B1.15 | — | `SentenceTransformerEmbedding` (BGE-M3, local, singleton) |
+
+---
+
+#### Task B1.15: Sentence Transformer Embedding (Local)
+
+**Files:**
+- Create: `rag_mcp_server/src/libs/embedding/sentence_transformer_embedding.py`
+- Create: `tests/unit/test_sentence_transformer_embedding.py`
+
+**Interfaces:**
+- Produces: `SentenceTransformerEmbedding(BaseEmbedding)` with `embed(texts) -> EmbeddingResponse`
+- Auto-registers as `"sentence_transformer"` provider with `EmbeddingFactory`
+
+**Design decisions:**
+- Model: `BAAI/bge-m3` (1024-dim, 100+ languages, ~2.2 GB)
+- **Class-level lazy singleton** — model loaded once on first `embed()` call, reused across all instances and consumers (RAG ingestion, RAG retrieval, MemoryStore)
+- No API key, no network — pure local CPU/GPU inference
+- `validate_texts()` inherited from `BaseEmbedding`
+- Empty list returns `EmbeddingResponse(embeddings=[], model=..., dimensions=1024)`
+
+```python
+class SentenceTransformerEmbedding(BaseEmbedding):
+    _model: Optional[SentenceTransformer] = None   # class-level singleton
+    _model_lock = threading.Lock()
+
+    def __init__(self, settings: Settings, **kwargs):
+        self.model_name = kwargs.pop("model", settings.embedding.get("model", "BAAI/bge-m3"))
+        self.device = kwargs.pop("device", settings.embedding.get("device", "cpu"))
+        self.normalize = kwargs.pop("normalize", settings.embedding.get("normalize", True))
+        self.batch_size = int(kwargs.pop("batch_size", settings.embedding.get("batch_size", 32)))
+
+    def embed(self, texts, trace=None, **kwargs) -> EmbeddingResponse:
+        self.validate_texts(texts)
+        if not texts:
+            return EmbeddingResponse(embeddings=[], model=self.model_name, dimensions=1024)
+        model = self._get_model()
+        vectors = model.encode(
+            texts, batch_size=self.batch_size, normalize_embeddings=self.normalize,
+            show_progress_bar=False, **kwargs,
+        )
+        return EmbeddingResponse(
+            embeddings=[v.tolist() for v in vectors],
+            model=self.model_name,
+            dimensions=vectors.shape[1],
+            usage={"total_tokens": sum(len(t) // 4 for t in texts)},
+        )
+
+    @classmethod
+    def _get_model(cls):
+        if cls._model is None:
+            with cls._model_lock:
+                if cls._model is None:
+                    from sentence_transformers import SentenceTransformer
+                    cls._model = SentenceTransformer(cls.model_name, device=cls.device)
+        return cls._model
+```
+
+- [ ] **Step 1: Write test with mocked SentenceTransformer**
+- [ ] **Step 2: Implement the class**
+- [ ] **Step 3: Run tests → pass → commit**
 
 ---
 
@@ -3035,7 +3096,7 @@ class WebSearchTool(Tool):
 
 ## Plan Self-Review
 
-1. **Spec coverage**: All 98 tasks from the spec (v1.1) are covered in this plan. Phase A (5 tasks) in full detail, Phase B (58 tasks) with file/interface mapping, Phases C-H (35 tasks, up from original 31 due to expanded memory tasks C6-C12) with detailed code and tests.
+1. **Spec coverage**: All 99 tasks from the spec (v1.1, +B1.15) are covered in this plan. Phase A (5 tasks) in full detail, Phase B (58 tasks) with file/interface mapping, Phases C-H (35 tasks, up from original 31 due to expanded memory tasks C6-C12) with detailed code and tests.
 
 2. **Placeholder scan**: No TBD or TODO markers. All tasks have concrete file paths, interfaces, and test code. Cache interface (F4) is explicitly marked as placeholder class with no logic — matching the spec's explicit "reserved, not implemented" requirement.
 

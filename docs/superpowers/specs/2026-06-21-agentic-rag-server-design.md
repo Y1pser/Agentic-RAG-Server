@@ -598,6 +598,7 @@ memory:
 | B1.12 | LLM Reranker 实现 | [ ] | — | `LLMReranker` + Prompt 模板支持 |
 | B1.13 | Vision LLM 抽象接口与工厂集成 | [ ] | — | `BaseVisionLLM` + `LLMFactory` 扩展 |
 | B1.14 | Azure Vision LLM 实现 | [ ] | — | `AzureVisionLLM` + 图片压缩 |
+| B1.15 | Sentence Transformer Embedding 本地实现 | [ ] | — | `SentenceTransformerEmbedding`（BGE-M3，单例懒加载，零 API 依赖）|
 
 ##### B-2：Ingestion Pipeline（PDF → Chunk → Embedding → Upsert）
 
@@ -750,7 +751,7 @@ memory:
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 10 | 71% |
+| Phase B-1 | 15 | 10 | 67% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -764,7 +765,7 @@ memory:
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **98** | **15** | **15.3%** |
+| **总计** | **99** | **15** | **15.2%** |
 
 ---
 
@@ -774,7 +775,7 @@ memory:
 |------|------|------|
 | RAG 框架 | 自研 Pipeline（参考 clean-start） | 复用原项目可插拔架构 |
 | 向量库 | Chroma | 嵌入式，零部署 |
-| Embedding | OpenAI / Azure | 通过工厂模式可切换 |
+| Embedding | OpenAI / Azure / Sentence Transformer (BGE-M3) | 通过工厂模式可切换，支持本地离线 |
 | LLM | Azure OpenAI / OpenAI | 通过工厂模式可切换 |
 | MCP SDK | Python `mcp` | 官方 SDK，stdio transport |
 | Agent 框架 | 自研 + LangGraph 双版本 | 面试对比叙事 |
@@ -789,7 +790,7 @@ memory:
 
 - [x] 无 TBD / TODO 占位
 - [x] 架构与功能描述一致
-- [x] 范围适中，98 个子任务覆盖 8 个阶段（v1.1 新增 4 个长短期记忆任务），可在 1-2 个月内完成
+- [x] 范围适中，99 个子任务覆盖 8 个阶段（v1.1 新增 4 个长短期记忆任务 + 1 个本地 Embedding），可在 1-2 个月内完成
 - [x] 无歧义需求，所有判定标准已明确
 - [x] 缓存接口标注「预留不实现」，避免范围蔓延
 - [x] Legal Splitter 已明确砍掉

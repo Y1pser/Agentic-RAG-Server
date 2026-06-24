@@ -59,6 +59,7 @@
 | B1.12 | LLM Reranker 实现 | [ ] | — | `LLMReranker` + Prompt 模板支持 |
 | B1.13 | Vision LLM 抽象接口与工厂集成 | [ ] | — | `BaseVisionLLM` + `LLMFactory` 扩展 |
 | B1.14 | Azure Vision LLM 实现 | [ ] | — | `AzureVisionLLM` + 图片压缩 |
+| B1.15 | Sentence Transformer Embedding 本地实现 | [ ] | — | `SentenceTransformerEmbedding`（BGE-M3，单例懒加载，零 API 依赖）|
 
 ##### B-2：Ingestion Pipeline（PDF → Chunk → Embedding → Upsert）
 
@@ -211,7 +212,7 @@
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 10 | 71% |
+| Phase B-1 | 15 | 10 | 67% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -225,7 +226,7 @@
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **98** | **15** | **15.3%** |
+| **总计** | **99** | **15** | **15.2%** |
 
 ---
 
