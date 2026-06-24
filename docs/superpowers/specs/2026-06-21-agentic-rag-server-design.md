@@ -1,6 +1,6 @@
 # Agentic RAG Server — 设计文档
 
-> 版本：1.1 | 日期：2026-06-24
+> 版本：1.2 | 日期：2026-06-25
 
 ---
 
@@ -388,14 +388,14 @@ D:\Codex_workspace\559-3\
 ```
 ┌──────────────────────────────────────────────────┐
 │  长期记忆 (MEMORY.md)                             │
-│  持久化：用户偏好、重要决策、知识沉淀               │
+│  持久化：用户偏好、重要决策、知识沉淀                │
 │  跨周/月，Agent 通过 memory_store 主动策展         │
-│  每次会话自动注入（有 token 预算，默认 ~2K tokens）│
+│  每次会话自动注入（有 token 预算，默认 ~2K tokens） │
 ├──────────────────────────────────────────────────┤
 │  短期笔记 (memory/YYYY-MM-DD.md)                  │
 │  持久化：按天滚动的追加式日志                      │
-│  跨会话保留，今日+昨日自动加载                     │
-│  更早日期的按需通过 memory_search 检索             │
+│  跨会话保留，仅通过 memory_search 按需检索        │
+│  不自动注入上下文（避免 token 浪费）              │
 ├──────────────────────────────────────────────────┤
 │  上下文窗口 (AgentMemory 对话历史)                 │
 │  易失：当前会话的 Think/Act/Observe               │
@@ -449,7 +449,7 @@ agent_layer/memory/
 **memory/YYYY-MM-DD.md**：
 - 内容：追加式日志、任务记录、观察、会话摘要
 - 写操作：Agent 通过 `memory_log` 工具追加
-- 读操作：今日 + 昨日文件在会话启动时自动加载；更早的通过 `memory_search` 按需检索
+- 读操作：始终通过 `memory_search` 按需检索，不自动注入上下文（一天的日志可能很长，自动注入浪费 token）
 - 生命周期：自然滚动，不需手动清理
 
 ### 6.4 混合搜索索引
@@ -532,7 +532,7 @@ memory:
   hybrid_weight_bm25: 0.3          # 混合搜索 BM25 权重
   # 自动注入
   inject_long_term_tokens: 2000    # 每次会话注入 MEMORY.md 的 token 预算
-  inject_short_term_days: 2        # 自动加载最近 N 天的短期笔记
+  # 短期笔记不自动注入，一律通过 memory_search 按需检索
 ```
 
 ---
@@ -805,6 +805,7 @@ memory:
 
 | 日期 | 修改前 | 修改后 | 修改原因 |
 |------|--------|--------|----------|
+| 2026-06-25 | 短期笔记在会话启动时自动注入今日+昨日（`inject_short_term_days: 2`） | 删除自动注入，短期笔记一律通过 `memory_search` 按需检索；保留 MEMORY.md 自动注入（`inject_long_term_tokens: 2000`） | 一天的日志可能很长，自动注入浪费 token；按需检索更精准，Agent 带语义去搜而非整篇灌入 |
 | 2026-06-24 | Phase C 共 8 个任务（C1-C8）；C6 仅为基础 AgentMemory（对话历史存储 + Token 估算） | Phase C 扩展为 12 个任务（C1-C12）：C6 AgentMemory 增强（Compaction + Token 管理 + Pre-flush 回调）、C7 MemoryStore（SQLite + FTS5 + 向量混合搜索）、C8 记忆工具集（memory_search/log/store/get）、C9 Compaction Prompt + Pre-flush、C10 MEMORY.md 模板 + Index 初始化、C11 Prompt 模板（扩展）、C12 Agent 配置模块（扩展） | 对标 OpenClaw 引入三层记忆模型：上下文窗口（Compaction）→ 短期笔记（YYYY-MM-DD.md）→ 长期记忆（MEMORY.md），通过 SQLite + FTS5 + Embedding 混合搜索索引实现长期记忆检索，不含 Dreaming 自动沉淀 |
 | 2026-06-24 | 目录结构：`agent_layer/tools/` 含 6 个文件（base / local_search / query_rewriter / web_search / registry），`agent_layer/prompts/` 含 3 个文件，无 memory 目录 | `agent_layer/tools/` 新增 memory_search / memory_log / memory_store（+3 文件→9），`agent_layer/prompts/` 新增 compaction_prompt.md / memory_flush_prompt.md（+2 文件→5），新增 `agent_layer/memory/` 目录（store.py / MEMORY.md / index.db） | 支撑长短期记忆系统的文件布局，对标 OpenClaw workspace 结构 |
 | 2026-06-24 | 版本：1.0 | 版本：1.1 | 新增 §6 Agent 长短期记忆设计章节；§6→§7（项目排期）；Phase C 8→12 任务；总任务 94→98 |

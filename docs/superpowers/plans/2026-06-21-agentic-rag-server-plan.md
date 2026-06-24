@@ -2487,7 +2487,6 @@ class MemoryConfig:
     hybrid_weight_vector: float = 0.7
     hybrid_weight_bm25: float = 0.3
     inject_long_term_tokens: int = 2000
-    inject_short_term_days: int = 2
 
 
 @dataclass
