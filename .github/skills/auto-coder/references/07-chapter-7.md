@@ -14,7 +14,7 @@
 |------|------|
 | **Phase A** | 环境初始化：工程骨架 + 测试基座 + 配置系统 |
 | **Phase B** | RAG 核心复现：完整复现原项目全部功能 |
-| **Phase C** | Agent 基础设施：Tool 集 + 判分器 + Prompt 模板 + 长短期记忆 |
+| **Phase C** | Agent 基础设施：Tool 集 + 判分器 + Prompt 模板 |
 | **Phase D** | 自研 ReAct 版：Think→Act→Observe 循环引擎 |
 | **Phase E** | LangGraph 版：StateGraph 实现，与自研版对照 |
 | **Phase F** | 联网搜索 + 全链路：Tavily/SerpAPI + 级联兜底 |
@@ -243,7 +243,6 @@
 | 配置管理 | YAML + .env | python-dotenv 加载 |
 | Dashboard | Streamlit | 六页管理平台（复现） |
 | 评估 | Ragas + Custom | 可插拔评估 |
-| 长期记忆 | SQLite + FTS5 + Embedding | 对标 OpenClaw builtin 引擎，混合搜索 |
 
 ---
 
@@ -251,11 +250,10 @@
 
 - [x] 无 TBD / TODO 占位
 - [x] 架构与功能描述一致
-- [x] 范围适中，98 个子任务覆盖 8 个阶段，可在 1-2 个月内完成
+- [x] 范围适中，94 个子任务覆盖 8 个阶段，可在 1-2 个月内完成
 - [x] 无歧义需求，所有判定标准已明确
 - [x] 缓存接口标注「预留不实现」，避免范围蔓延
 - [x] Legal Splitter 已明确砍掉
 - [x] .env 密钥管理方案已确定
 - [x] 进度跟踪表已建立，与 DEV_SPEC 格式对齐，每个子任务功能单一、可独立验收
 - [x] 每个阶段包含明确的验证标准
-- [x] 长短期记忆设计对标 OpenClaw，三层模型不含 Dreaming 自动沉淀

@@ -1892,123 +1892,453 @@ class HybridScorer:
 
 ---
 
-### Task C6: Agent Memory
+### Task C6: AgentMemory Enhancement (Compaction + Token Management)
 
 **Files:**
-- Create: `agent_layer/core/agent_memory.py`
+- Modify: `agent_layer/core/agent_memory.py` (enhance existing)
 - Create: `agent_layer/tests/test_memory.py`
 
 **Interfaces:**
-- Produces: `AgentMemory` with `add(role, content)`, `get_history() -> list[dict]`, `clear()`
-- Consumed by: D1
+- Produces: `AgentMemory` with `add(role, content)`, `get_history() -> list[dict]`, `clear()`, `token_count() -> int`, `compact(llm) -> str`, `on_flush(callback)`
+- Consumed by: D1, D4 (ReAct engine + CLI)
+
+**Design:**
+```
+AgentMemory
+├── _history: list[Message]      # 原始消息
+├── _summaries: list[str]        # 结构化压缩摘要
+├── compaction_threshold: float  # 0.7 (窗口用满70%触发)
+├── keep_recent_tokens: int      # 20000 (保留最近N tokens原文)
+│
+├── add(role, content)           # 追加消息
+├── get_history()                # 返回 [summaries] + [recent messages]
+├── get_full_context()           # 给 LLM 的完整上下文
+├── token_count()                # 估算当前总 token 数
+├── should_compact() -> bool     # 检查是否超过阈值
+├── compact(llm) -> str          # 执行压缩，返回摘要
+└── on_flush(callback)           # 注册 pre-compaction flush 回调
+```
 
 - [ ] **Step 1: Write test**
 
 ```python
 # agent_layer/tests/test_memory.py
-"""Tests for Agent memory management."""
+"""Tests for enhanced Agent memory with compaction."""
 
+import pytest
+from unittest.mock import Mock
 from agent_layer.core.agent_memory import AgentMemory
 
 
 class TestAgentMemory:
+    """Unit tests for core memory operations."""
+
     def test_add_and_retrieve(self):
-        """Should store and retrieve conversation turns."""
         memory = AgentMemory()
         memory.add("user", "What is RAG?")
         memory.add("assistant", "RAG stands for Retrieval-Augmented Generation.")
         history = memory.get_history()
         assert len(history) == 2
-        assert history[0]["role"] == "user"
-        assert history[1]["role"] == "assistant"
 
     def test_clear(self):
-        """Clear should empty history."""
         memory = AgentMemory()
         memory.add("user", "test")
-        assert len(memory.get_history()) == 1
         memory.clear()
         assert len(memory.get_history()) == 0
 
     def test_get_last_n(self):
-        """Should return last N entries."""
         memory = AgentMemory()
         for i in range(5):
             memory.add("user", f"msg {i}")
         last_3 = memory.get_last_n(3)
         assert len(last_3) == 3
         assert last_3[-1]["content"] == "msg 4"
+
+
+class TestCompaction:
+    """Tests for context compaction mechanism."""
+
+    def test_should_not_compact_below_threshold(self):
+        """Short context should not trigger compaction."""
+        memory = AgentMemory(compaction_threshold=0.7, keep_recent_tokens=20000)
+        memory.add("user", "hi")
+        assert not memory.should_compact()
+
+    def test_should_compact_when_near_limit(self, mocker):
+        """Context near token limit should trigger compaction."""
+        memory = AgentMemory(
+            compaction_threshold=0.7,
+            keep_recent_tokens=20000,
+            max_context_tokens=100000,
+        )
+        # Simulate a long conversation
+        long_text = "word " * 60000
+        memory.add("user", long_text)
+        assert memory.should_compact()
+
+    def test_compact_preserves_recent_messages(self, mocker):
+        """Compaction should keep recent messages intact."""
+        mock_llm = mocker.Mock()
+        mock_llm.chat.return_value = "[Summary] Key decisions: ..."
+
+        memory = AgentMemory(keep_recent_tokens=100)
+        # Add 3 messages of ~50 tokens each
+        memory.add("system", "You are a helpful assistant.")
+        memory.add("user", "hello " * 20)   # ~100 tokens
+        memory.add("user", "world " * 20)   # ~100 tokens
+
+        result = memory.compact(mock_llm)
+        history = memory.get_history()
+        # Recent messages should still be present
+        assert "world" in history[-1]["content"]
+
+    def test_pre_flush_callback_invoked(self, mocker):
+        """Pre-compaction flush callback should be called."""
+        flush_called = []
+        memory = AgentMemory()
+        memory.on_flush(lambda: flush_called.append(True))
+
+        mock_llm = mocker.Mock()
+        mock_llm.chat.return_value = "[Summary]"
+        memory.add("user", "x " * 30000)
+        memory.compact(mock_llm)
+        assert len(flush_called) == 1
 ```
 
-- [ ] **Step 2: Implement AgentMemory**
+- [ ] **Step 2: Implement enhanced AgentMemory**
 
 ```python
-# agent_layer/core/agent_memory.py
-"""Conversation memory for Agent context management."""
+# agent_layer/core/agent_memory.py (enhanced)
+"""Conversation memory with compaction for context window management."""
+
+from typing import Callable, Any
 
 
 class AgentMemory:
-    """Stores conversation history for the Agent's ReAct loop.
+    """Conversation memory with compaction support.
 
-    Maintains a list of message dicts (role + content) representing
-    the conversation between user, assistant (thoughts), and tool outputs.
+    Stores conversation history and supports compressing older messages
+    into structured summaries to stay within context window limits.
     """
 
-    def __init__(self, max_turns: int = 50):
-        """Initialize memory.
-
-        Args:
-            max_turns: Maximum number of conversation turns to retain.
-        """
+    def __init__(
+        self,
+        max_context_tokens: int = 128000,
+        compaction_threshold: float = 0.7,
+        keep_recent_tokens: int = 20000,
+    ):
         self._history: list[dict] = []
-        self.max_turns = max_turns
+        self._summaries: list[str] = []
+        self.max_context_tokens = max_context_tokens
+        self.compaction_threshold = compaction_threshold
+        self.keep_recent_tokens = keep_recent_tokens
+        self._flush_callbacks: list[Callable] = []
 
     def add(self, role: str, content: str) -> None:
-        """Add a message to the conversation history.
-
-        Args:
-            role: Message role ('user', 'assistant', 'system', 'tool').
-            content: Message content.
-        """
+        """Add a message to the conversation history."""
         self._history.append({"role": role, "content": content})
-        # Trim if exceeding max_turns (each turn = user + assistant)
-        while len(self._history) > self.max_turns * 2:
-            self._history.pop(0)
 
     def get_history(self) -> list[dict]:
-        """Return the full conversation history."""
-        return list(self._history)
+        """Return full context: summaries (as system messages) + recent history."""
+        result = []
+        for s in self._summaries:
+            result.append({"role": "system", "content": f"[Previous context summary]\n{s}"})
+        result.extend(self._history)
+        return result
 
     def get_last_n(self, n: int) -> list[dict]:
-        """Return the last N messages.
-
-        Args:
-            n: Number of recent messages to return.
-
-        Returns:
-            List of the last N message dicts.
-        """
+        """Return the last N messages."""
         return self._history[-n:] if n < len(self._history) else list(self._history)
 
     def clear(self) -> None:
-        """Clear all conversation history."""
+        """Clear all conversation history and summaries."""
         self._history.clear()
+        self._summaries.clear()
+
+    def token_count(self) -> int:
+        """Estimate total token count (4 chars ≈ 1 token)."""
+        total = 0
+        for s in self._summaries:
+            total += len(s) // 4
+        for msg in self._history:
+            total += len(msg["content"]) // 4
+        return total
+
+    def should_compact(self) -> bool:
+        """Check if token count exceeds the compaction threshold."""
+        limit = int(self.max_context_tokens * self.compaction_threshold)
+        return self.token_count() > limit
+
+    def compact(self, llm: Any) -> str:
+        """Compress older messages into structured summaries.
+
+        Args:
+            llm: BaseLLM instance for summary generation.
+
+        Returns:
+            The generated summary string.
+        """
+        # Invoke pre-flush callbacks
+        for cb in self._flush_callbacks:
+            try:
+                cb()
+            except Exception:
+                pass
+
+        # Determine split point: keep last ~keep_recent_tokens tokens
+        keep_count = 0
+        split_idx = len(self._history)
+        for i in range(len(self._history) - 1, -1, -1):
+            t = len(self._history[i]["content"]) // 4
+            if keep_count + t > self.keep_recent_tokens:
+                split_idx = i + 1
+                break
+            keep_count += t
+
+        old_messages = self._history[:split_idx]
+        self._history = self._history[split_idx:]
+
+        if not old_messages:
+            return ""
+
+        # Generate structured summary via LLM
+        summary = self._generate_summary(llm, old_messages)
+        self._summaries.append(summary)
+        return summary
+
+    def _generate_summary(self, llm: Any, messages: list[dict]) -> str:
+        """Use LLM to generate a structured summary preserving key info."""
+        from pathlib import Path
+
+        prompt_path = Path(__file__).parent.parent / "prompts" / "compaction_prompt.md"
+        if prompt_path.exists():
+            template = prompt_path.read_text(encoding="utf-8")
+        else:
+            template = (
+                "Summarize the following conversation, preserving:\n"
+                "- Task status and next steps\n"
+                "- Key decisions and rationale\n"
+                "- TODO items\n"
+                "- Critical identifiers (filenames, IDs, URLs)\n\n"
+                "Conversation:\n{conversation}\n\n"
+                "Structured Summary:"
+            )
+
+        conv_text = "\n".join(
+            f"[{m['role']}] {m['content'][:500]}" for m in messages
+        )
+        prompt = template.format(conversation=conv_text)
+        response = llm.chat([{"role": "user", "content": prompt}])
+        return response.content if hasattr(response, "content") else str(response)
+
+    def on_flush(self, callback: Callable) -> None:
+        """Register a callback to be invoked before compaction."""
+        self._flush_callbacks.append(callback)
 ```
 
 - [ ] **Step 3: Run tests → pass → commit**
 
 ---
 
-### Task C7: Prompt Templates
+### Task C7: MemoryStore Core Engine
+
+**Files:**
+- Create: `agent_layer/memory/store.py`
+- Create: `agent_layer/memory/__init__.py`
+- Create: `agent_layer/tests/test_memory_store.py`
+
+**Interfaces:**
+- Produces: `MemoryStore` with `index_files()`, `search(query, top_k) -> list[MemoryChunk]`, `reindex()`
+- Depends on: `config/settings.yaml` memory section, `EmbeddingFactory`
+
+**Design:**
+```
+MemoryStore
+├── workspace_dir: Path        # agent_layer/memory/
+├── db_path: Path              # agent_layer/memory/index.db
+├── chunk_size: int            # 400 tokens
+├── chunk_overlap: int         # 80 tokens
+│
+├── index_files()              # 扫描 *.md → 分块 → 建索引
+├── search(query, top_k)       # 混合搜索（0.7向量 + 0.3 BM25）
+├── embed(texts) -> vectors    # 复用 EmbeddingFactory
+├── _chunk_file(path)          # 将文件分块
+└── reindex()                  # 增量重建（基于 mtime + hash）
+```
+
+**SQLite schema:**
+```sql
+CREATE TABLE files (
+    id INTEGER PRIMARY KEY,
+    path TEXT UNIQUE,
+    mtime REAL,
+    size INTEGER,
+    content_hash TEXT
+);
+
+CREATE TABLE chunks (
+    id INTEGER PRIMARY KEY,
+    file_id INTEGER REFERENCES files(id),
+    chunk_index INTEGER,
+    content TEXT,
+    embedding_json TEXT,         -- JSON-serialized float list
+    start_line INTEGER,
+    end_line INTEGER
+);
+
+CREATE VIRTUAL TABLE chunks_fts USING fts5(
+    content,
+    content='chunks',
+    content_rowid='id'
+);
+```
+
+- [ ] **Step 1: Write test with temp workspace**
+- [ ] **Step 2: Implement MemoryStore with SQLite + FTS5**
+- [ ] **Step 3: Run tests → pass → commit**
+
+---
+
+### Task C8: Memory Tool Set
+
+**Files:**
+- Create: `agent_layer/tools/memory_search.py`
+- Create: `agent_layer/tools/memory_log.py`
+- Create: `agent_layer/tools/memory_store.py`
+- Modify: `agent_layer/tests/test_tools.py`
+
+**Interfaces:**
+- Produces: `MemorySearchTool`, `MemoryGetTool`, `MemoryLogTool`, `MemoryStoreTool` — all implementing Tool base
+- Depends on: C7 (MemoryStore)
+
+**Tool designs:**
+
+```python
+# memory_search: hybrid search with dedup + ranking
+class MemorySearchTool(Tool):
+    name = "memory_search"
+    description = "Search long-term and short-term memory using hybrid retrieval..."
+    parameters = {"query": "string", "top_k": "int (default 10)"}
+    # Returns: formatted search results with source path + relevance score
+
+# memory_get: read full file by path
+class MemoryGetTool(Tool):
+    name = "memory_get"
+    description = "Read the full content of a memory file by path..."
+    parameters = {"path": "string (e.g. 'MEMORY.md' or '2024-06-24.md')"}
+
+# memory_log: append timestamped entry to daily note
+class MemoryLogTool(Tool):
+    name = "memory_log"
+    description = "Append a timestamped log entry to today's short-term memory..."
+    parameters = {"content": "string"}
+
+# memory_store: curated write to MEMORY.md with upsert-by-tag
+class MemoryStoreTool(Tool):
+    name = "memory_store"
+    description = "Store a curated fact in long-term memory. Use tags for upsert..."
+    parameters = {"tag": "string", "content": "string"}
+```
+
+- [ ] **Step 1: Write tests with mocked MemoryStore**
+- [ ] **Step 2: Implement all 4 tools**
+- [ ] **Step 3: Run tests → pass → commit**
+
+---
+
+### Task C9: Compaction Prompts + Pre-flush Mechanism
+
+**Files:**
+- Create: `agent_layer/prompts/compaction_prompt.md`
+- Create: `agent_layer/prompts/memory_flush_prompt.md`
+- Modify: `agent_layer/core/agent_memory.py` (integrate flush callbacks)
+
+**Prompt templates:**
+
+`compaction_prompt.md`:
+```
+You are a context summarizer. Compress the following older conversation into a structured summary.
+
+## Required fields to preserve:
+- [Task Status]: Current progress, next steps
+- [Key Decisions]: Choices made and why
+- [TODO]: Incomplete items
+- [Identifiers]: File names, function names, IDs, URLs
+
+## Conversation to compress:
+{conversation}
+
+## Structured Summary:
+```
+
+`memory_flush_prompt.md`:
+```
+The context window is nearly full. Before compaction, review the conversation and save anything valuable to memory:
+
+1. Use `memory_store` for durable facts, decisions, preferences (writes to MEMORY.md)
+2. Use `memory_log` for daily notes, observations, session summary (writes to today's log)
+3. Do NOT archive trivial chitchat — be selective
+
+What should be preserved from this conversation?
+```
+
+- [ ] **Step 1: Create prompt files**
+- [ ] **Step 2: Integrate flush mechanism (AgentMemory.on_flush + ReActAgent pre-compact hook)**
+- [ ] **Step 3: Commit**
+
+---
+
+### Task C10: MEMORY.md Template + Index Initialization
+
+**Files:**
+- Create: `agent_layer/memory/MEMORY.md`
+- Create: `agent_layer/memory/.gitkeep`
+- Modify: `.gitignore` (add `index.db`)
+
+**MEMORY.md template:**
+```markdown
+# Agent Memory — Long-Term Storage
+
+> Curated facts, preferences, and decisions. Managed by the Agent via `memory_store` tool.
+> Tags support upsert: same tag = in-place update.
+
+<!-- memory:user-profile -->
+- (no entries yet)
+<!-- /memory:user-profile -->
+
+<!-- memory:project-context -->
+- Project: Agentic RAG Server
+- Architecture: Dual-layer (Agent + RAG)
+- Tech stack: Python 3.11+, Chroma, LangChain, MCP SDK
+<!-- /memory:project-context -->
+
+<!-- memory:decisions -->
+- (no entries yet)
+<!-- /memory:decisions -->
+
+<!-- memory:preferences -->
+- (no entries yet)
+<!-- /memory:preferences -->
+```
+
+- [ ] **Step 1: Create MEMORY.md template + .gitkeep**
+- [ ] **Step 2: Add `index.db` to .gitignore**
+- [ ] **Step 3: Implement MemoryStore.init_workspace() — create dir + initialize schema**
+- [ ] **Step 4: Commit**
+
+---
+
+### Task C11: Prompt Templates
 
 **Files:**
 - Create: `agent_layer/prompts/react_system.md`
 - Create: `agent_layer/prompts/scorer_prompt.md`
 - Create: `agent_layer/prompts/rewriter_prompt.md`
+- Modify: `agent_layer/prompts/react_system.md` (include memory tool descriptions)
 
 **Interfaces:**
 - Produces: Three prompt template files loaded by Agent and Tool classes
-- Consumed by: C4, C5, D1
+- Consumed by: C4, C5, C8 (memory tools need tool descriptions in react_system), D1
 
 - [ ] **Step 1: Create react_system.md**
 
@@ -2059,11 +2389,11 @@ git commit -m "feat(C7): Agent prompt templates — ReAct system, scorer dual-mo
 
 ---
 
-### Task C8: Agent Configuration Module
+### Task C12: Agent Configuration Module
 
 **Files:**
 - Create: `agent_layer/core/config.py`
-- Modify: `config/settings.yaml` (verify agent section exists)
+- Modify: `config/settings.yaml` (verify agent + memory sections exist)
 
 **Interfaces:**
 - Produces: `AgentConfig` dataclass read from settings
@@ -2085,16 +2415,33 @@ class WebSearchConfig:
 
 
 @dataclass
+class MemoryConfig:
+    """Long-term / short-term memory configuration."""
+    enabled: bool = True
+    workspace_dir: str = "agent_layer/memory"
+    compaction_threshold: float = 0.7
+    keep_recent_tokens: int = 20000
+    chunk_size: int = 400
+    chunk_overlap: int = 80
+    hybrid_weight_vector: float = 0.7
+    hybrid_weight_bm25: float = 0.3
+    inject_long_term_tokens: int = 2000
+    inject_short_term_days: int = 2
+
+
+@dataclass
 class AgentConfig:
     """Agent configuration, loaded from settings.yaml agent section."""
     max_rounds: int = 3
     score_threshold: float = 0.7
     web_search: WebSearchConfig = field(default_factory=WebSearchConfig)
+    memory: MemoryConfig = field(default_factory=MemoryConfig)
 
     @classmethod
     def from_settings(cls, settings: dict) -> "AgentConfig":
         """Create AgentConfig from the agent section of settings."""
         ws_raw = settings.get("web_search", {})
+        mem_raw = settings.get("memory", {})
         return cls(
             max_rounds=settings.get("max_rounds", 3),
             score_threshold=settings.get("score_threshold", 0.7),
@@ -2688,7 +3035,7 @@ class WebSearchTool(Tool):
 
 ## Plan Self-Review
 
-1. **Spec coverage**: All 94 tasks from the spec are covered in this plan. Phase A (5 tasks) in full detail, Phase B (58 tasks) with file/interface mapping, Phases C-H (31 tasks) with detailed code and tests.
+1. **Spec coverage**: All 98 tasks from the spec (v1.1) are covered in this plan. Phase A (5 tasks) in full detail, Phase B (58 tasks) with file/interface mapping, Phases C-H (35 tasks, up from original 31 due to expanded memory tasks C6-C12) with detailed code and tests.
 
 2. **Placeholder scan**: No TBD or TODO markers. All tasks have concrete file paths, interfaces, and test code. Cache interface (F4) is explicitly marked as placeholder class with no logic — matching the spec's explicit "reserved, not implemented" requirement.
 

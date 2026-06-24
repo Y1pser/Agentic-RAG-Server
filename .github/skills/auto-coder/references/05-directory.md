@@ -28,14 +28,23 @@ D:\Codex_workspace\559-3\
     │   │   ├── local_search.py    # 本地 RAG 检索工具
     │   │   ├── query_rewriter.py  # Query 改写工具
     │   │   ├── web_search.py      # 联网搜索（Tavily / SerpAPI）
+    │   │   ├── memory_search.py   # 混合搜索记忆检索工具
+    │   │   ├── memory_log.py      # 追加短期笔记工具
+    │   │   ├── memory_store.py    # 策展写入长期记忆工具
     │   │   └── registry.py        # Tool 注册中心
     │   ├── versions/
     │   │   ├── langgraph_agent.py # LangGraph 版 Agent
     │   │   └── custom_agent.py    # 自研 ReAct 版 Agent
+    │   ├── memory/                # 长短期记忆系统
+    │   │   ├── store.py           # MemoryStore（SQLite + FTS5 + 向量混合索引）
+    │   │   ├── MEMORY.md          # 长期记忆模板
+    │   │   └── index.db           # SQLite 索引（gitignored）
     │   ├── prompts/
     │   │   ├── react_system.md    # ReAct System Prompt
     │   │   ├── scorer_prompt.md   # 判分 Prompt（decision + confidence）
-    │   │   └── rewriter_prompt.md # 改写 Prompt
+    │   │   ├── rewriter_prompt.md # 改写 Prompt
+    │   │   ├── compaction_prompt.md   # Compaction 结构化摘要 Prompt
+    │   │   └── memory_flush_prompt.md # Pre-compaction flush Prompt
     │   └── tests/
     │
     ├── docs/
