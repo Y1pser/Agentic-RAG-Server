@@ -425,7 +425,7 @@ D:\Codex_workspace\559-3\
 | B1.7 | OpenAI-Compatible LLM 实现 | [x] | 2026-06-23 | `OpenAILLM` + `AzureLLM` + `DeepSeekLLM` |
 | B1.8 | Ollama LLM 实现 | [x] | 2026-06-23 | `OllamaLLM` |
 | B1.9 | OpenAI & Azure Embedding 实现 | [x] | 2026-06-24 | `OpenAIEmbedding` + `AzureEmbedding` |
-| B1.10 | Recursive Splitter 默认实现 | [ ] | — | `RecursiveSplitter`（LangChain 集成）|
+| B1.10 | Recursive Splitter 默认实现 | [x] | 2026-06-24 | `RecursiveSplitter`（LangChain 集成），21 个单元测试通过 |
 | B1.11 | ChromaStore 默认实现 | [ ] | — | `ChromaStore` + roundtrip 验证 |
 | B1.12 | LLM Reranker 实现 | [ ] | — | `LLMReranker` + Prompt 模板支持 |
 | B1.13 | Vision LLM 抽象接口与工厂集成 | [ ] | — | `BaseVisionLLM` + `LLMFactory` 扩展 |
@@ -578,7 +578,7 @@ D:\Codex_workspace\559-3\
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 9 | 64% |
+| Phase B-1 | 14 | 10 | 71% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -592,7 +592,7 @@ D:\Codex_workspace\559-3\
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **94** | **14** | **14.9%** |
+| **总计** | **94** | **15** | **16.0%** |
 
 ---
 
