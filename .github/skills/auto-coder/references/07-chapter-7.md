@@ -55,10 +55,11 @@
 | B1.8 | Ollama LLM 实现 | [x] | 2026-06-23 | `OllamaLLM` |
 | B1.9 | OpenAI & Azure Embedding 实现 | [x] | 2026-06-24 | `OpenAIEmbedding` + `AzureEmbedding` |
 | B1.10 | Recursive Splitter 默认实现 | [x] | 2026-06-24 | `RecursiveSplitter`（LangChain 集成），21 个单元测试通过 |
-| B1.11 | ChromaStore 默认实现 | [ ] | — | `ChromaStore` + roundtrip 验证 |
+| B1.11 | ChromaStore 默认实现 | [x] | 2026-06-25 | `ChromaStore` + roundtrip 验证, 33/33 tests passed |
 | B1.12 | LLM Reranker 实现 | [ ] | — | `LLMReranker` + Prompt 模板支持 |
 | B1.13 | Vision LLM 抽象接口与工厂集成 | [ ] | — | `BaseVisionLLM` + `LLMFactory` 扩展 |
 | B1.14 | Azure Vision LLM 实现 | [ ] | — | `AzureVisionLLM` + 图片压缩 |
+| B1.15 | Sentence Transformer Embedding 本地实现 | [ ] | — | `SentenceTransformerEmbedding`（BGE-M3，单例懒加载，零 API 依赖）|
 
 ##### B-2：Ingestion Pipeline（PDF → Chunk → Embedding → Upsert）
 
@@ -211,7 +212,7 @@
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 14 | 10 | 71% |
+| Phase B-1 | 15 | 11 | 73% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -225,7 +226,7 @@
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **98** | **15** | **15.3%** |
+| **总计** | **99** | **16** | **16.2%** |
 
 ---
 
@@ -235,7 +236,7 @@
 |------|------|------|
 | RAG 框架 | 自研 Pipeline（参考 clean-start） | 复用原项目可插拔架构 |
 | 向量库 | Chroma | 嵌入式，零部署 |
-| Embedding | OpenAI / Azure | 通过工厂模式可切换 |
+| Embedding | OpenAI / Azure / Sentence Transformer (BGE-M3) | 通过工厂模式可切换，支持本地离线 |
 | LLM | Azure OpenAI / OpenAI | 通过工厂模式可切换 |
 | MCP SDK | Python `mcp` | 官方 SDK，stdio transport |
 | Agent 框架 | 自研 + LangGraph 双版本 | 面试对比叙事 |
@@ -250,10 +251,43 @@
 
 - [x] 无 TBD / TODO 占位
 - [x] 架构与功能描述一致
-- [x] 范围适中，94 个子任务覆盖 8 个阶段，可在 1-2 个月内完成
+- [x] 范围适中，99 个子任务覆盖 8 个阶段（v1.1 新增 4 个长短期记忆任务 + 1 个本地 Embedding），可在 1-2 个月内完成
 - [x] 无歧义需求，所有判定标准已明确
 - [x] 缓存接口标注「预留不实现」，避免范围蔓延
 - [x] Legal Splitter 已明确砍掉
 - [x] .env 密钥管理方案已确定
 - [x] 进度跟踪表已建立，与 DEV_SPEC 格式对齐，每个子任务功能单一、可独立验收
 - [x] 每个阶段包含明确的验证标准
+- [x] Agent 长短期记忆对标 OpenClaw builtin 引擎，三层模型不含 Dreaming 自动沉淀，由 Agent 主动驱动
+
+---
+
+## 迭代修改记录
+
+| 日期 | 修改前 | 修改后 | 修改原因 |
+|------|--------|--------|----------|
+| 2026-06-25 | 短期笔记在会话启动时自动注入今日+昨日（`inject_short_term_days: 2`） | 删除自动注入，短期笔记一律通过 `memory_search` 按需检索；保留 MEMORY.md 自动注入（`inject_long_term_tokens: 2000`） | 一天的日志可能很长，自动注入浪费 token；按需检索更精准，Agent 带语义去搜而非整篇灌入 |
+| 2026-06-24 | Phase C 共 8 个任务（C1-C8）；C6 仅为基础 AgentMemory（对话历史存储 + Token 估算） | Phase C 扩展为 12 个任务（C1-C12）：C6 AgentMemory 增强（Compaction + Token 管理 + Pre-flush 回调）、C7 MemoryStore（SQLite + FTS5 + 向量混合搜索）、C8 记忆工具集（memory_search/log/store/get）、C9 Compaction Prompt + Pre-flush、C10 MEMORY.md 模板 + Index 初始化、C11 Prompt 模板（扩展）、C12 Agent 配置模块（扩展） | 对标 OpenClaw 引入三层记忆模型：上下文窗口（Compaction）→ 短期笔记（YYYY-MM-DD.md）→ 长期记忆（MEMORY.md），通过 SQLite + FTS5 + Embedding 混合搜索索引实现长期记忆检索，不含 Dreaming 自动沉淀 |
+| 2026-06-24 | 目录结构：`agent_layer/tools/` 含 6 个文件（base / local_search / query_rewriter / web_search / registry），`agent_layer/prompts/` 含 3 个文件，无 memory 目录 | `agent_layer/tools/` 新增 memory_search / memory_log / memory_store（+3 文件→9），`agent_layer/prompts/` 新增 compaction_prompt.md / memory_flush_prompt.md（+2 文件→5），新增 `agent_layer/memory/` 目录（store.py / MEMORY.md / index.db） | 支撑长短期记忆系统的文件布局，对标 OpenClaw workspace 结构 |
+| 2026-06-24 | 版本：1.0 | 版本：1.1 | 新增 §6 Agent 长短期记忆设计章节；§6→§7（项目排期）；Phase C 8→12 任务；总任务 94→98 |
+| 2026-06-24 | B-1 共 14 个任务（B1.1-B1.14），Embedding 仅支持 OpenAI / Azure 云端 | B-1 扩展为 15 个任务，新增 B1.15 `SentenceTransformerEmbedding`（BGE-M3，1024-dim，类级别单例懒加载，零 API 依赖，三层共享） | 支持本地离线 Embedding（BGE-M3 中文 SOTA），RAG 摄取、检索、MemoryStore 三场景统一使用同一模型实例 |
+| 2026-06-24 | 总任务 94（Phase A 5 + B 58 + C 8 + D-H 23） | 总任务 99（Phase A 5 + B 59 + C 12 + D-H 23）；进度 15/99（15.2%） | Phase C 记忆扩展新增 4 个任务 + B1.15 本地 Embedding 新增 1 个任务 |
+
+### 架构审查决议（2026-06-24）
+
+| # | 议题 | 决议 |
+|---|------|------|
+| 1 | HybridScorer 通过正则解析 Tool 输出字符串获取分数 | 跳过，保持字符串透传方式 |
+| 2 | MemoryStore 和 RAG 管线各自实例化 Embedding 模型 | B1.15 采用类级别懒加载单例，防止重复加载 BGE-M3（~2.2GB） |
+| 3 | Tool 执行异常直接冒泡导致 Agent 崩溃 | Tool 异常捕获后转为 Observation 字符串喂给 LLM，由 LLM 决定如何应对 |
+| 4 | Phase D 完成时 web_search 尚未实现（Phase F），ToolRegistry 缺失导致死循环 | `ToolRegistry.has()` 方法过滤缺失工具，ReAct 引擎启动时自动从 System Prompt 移除未注册工具的 description |
+| 5 | 知识库（HybridSearch）和长期记忆（MemoryStore）存在双重索引 | 交给 LLM 自主判断何时调用 `memory_search` vs `local_search`，不强行合并 |
+| 6 | LLM 调用失败（网络波动 / Rate Limit）无重试机制 | 备选方案，出现实际问题后再添加指数退避重试 |
+| 7 | `agent_layer/` 与 `rag_mcp_server/` 通过直接 import 耦合 | 当前 Phase 1 直接 import 可接受，拆独立服务时再解耦 |
+
+### 技术选型更新（2026-06-24）
+
+| 变更 | 修改前 | 修改后 |
+|------|--------|--------|
+| Embedding 选型 | OpenAI / Azure | OpenAI / Azure / Sentence Transformer (BGE-M3) |
+| 长期记忆引擎 | 无 | SQLite + FTS5 + Embedding 混合搜索（对标 OpenClaw builtin） |
