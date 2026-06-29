@@ -1065,6 +1065,7 @@ Each follows the same TDD pattern as B1.1/B1.2. Key files and interfaces:
 | B1.13 | `BaseVisionLLM.describe(image) -> str` | Factory integration |
 | B1.14 | — | `AzureVisionLLM` |
 | B1.15 | — | `SentenceTransformerEmbedding` (BGE-M3, local, singleton) |
+| B1.16 | — | `CrossEncoderReranker` (sentence-transformers) |
 
 ---
 
