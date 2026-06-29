@@ -23,6 +23,7 @@ class Settings:
     dashboard: dict = field(default_factory=dict)
     agent: dict = field(default_factory=dict)
     ingestion: dict = field(default_factory=dict)
+    vision: dict = field(default_factory=dict)
 
 
 def load_settings(path: str) -> Settings:

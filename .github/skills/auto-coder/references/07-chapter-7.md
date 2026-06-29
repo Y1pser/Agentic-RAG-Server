@@ -57,7 +57,7 @@
 | B1.10 | Recursive Splitter 默认实现 | [x] | 2026-06-24 | `RecursiveSplitter`（LangChain 集成），21 个单元测试通过 |
 | B1.11 | ChromaStore 默认实现 | [x] | 2026-06-25 | `ChromaStore` + roundtrip 验证, 33/33 tests passed |
 | B1.12 | LLM Reranker 实现 | [x] | 2026-06-27 | `LLMReranker` + Prompt 模板支持, 28/28 tests passed |
-| B1.13 | Vision LLM 抽象接口与工厂集成 | [ ] | — | `BaseVisionLLM` + `LLMFactory` 扩展 |
+| B1.13 | Vision LLM 抽象接口与工厂集成 | [x] | 2026-06-29 | `BaseVisionLLM` + `VisionLLMFactory`, 32/32 tests passed |
 | B1.14 | Azure Vision LLM 实现 | [ ] | — | `AzureVisionLLM` + 图片压缩 |
 | B1.15 | Sentence Transformer Embedding 本地实现 | [ ] | — | `SentenceTransformerEmbedding`（BGE-M3，单例懒加载，零 API 依赖）|
 | B1.16 | Cross-Encoder Reranker 实现 | [x] | 2026-06-27 | `CrossEncoderReranker` + sentence-transformers 集成, 26/26 tests passed |
@@ -213,7 +213,7 @@
 | 阶段 | 总任务数 | 已完成 | 进度 |
 |------|---------|--------|------|
 | Phase A | 5 | 5 | 100% |
-| Phase B-1 | 16 | 13 | 81% |
+| Phase B-1 | 16 | 14 | 88% |
 | Phase B-2 | 14 | 0 | 0% |
 | Phase B-3 | 7 | 0 | 0% |
 | Phase B-4 | 5 | 0 | 0% |
@@ -227,7 +227,7 @@
 | Phase F | 5 | 0 | 0% |
 | Phase G | 4 | 0 | 0% |
 | Phase H | 4 | 0 | 0% |
-| **总计** | **99** | **16** | **16.2%** |
+| **总计** | **99** | **17** | **17.2%** |
 
 ---
 
